@@ -1,0 +1,152 @@
+
+
+   Elements:
+  ----------------------
+
+    1.   u-boot Binary:   firmware_ls1043ardb_uboot_sdboot.img
+
+
+         comes from layerscape github website:
+
+         https://lsdk.github.io/components.html
+             -> LSDK Images -> Dropdown, 2004 -> firmware_ls1043ardb_uboot_sdboot.img
+         
+
+
+
+    2.   Linux Kernel for imx8.    The build produces 2 files that are needed:
+
+                 1.  Image              (Linux kernel)
+                 2.  ???.dtb            (Device Tree Binary)
+
+         Kernel comes from:
+
+                 https://source.codeaurora.org/external/qoriq/qoriq-components/linux
+
+         On this branch:
+
+                 git checkout -b linux-5.4 origin/linux-5.4
+
+         Configure/Build:
+
+                 export ARCH=arm64
+                 export CROSS_COMPILE=aarch64-linux-gnu-
+                 make defconfig lsdk.config
+                 make menuconfig
+                 make Image modules dtbs -j8
+
+
+
+
+    3.   Ubuntu Base File System
+
+
+
+
+1.  Making a bootable SDCARD:
+-------------------------------
+
+#
+#   Takes about 60 seconds (5yr old clunky dell laptop), so be patient.   This effectively wipes a sdcard
+#
+sudo dd if=/dev/zero of=/dev/sdb bs=1M count=812400000 iflag=count_bytes status=progress conv=fsync
+
+#
+#   Copies u-boot Binary to sdcard
+#   File comes from nxp Binaries distribution (see their website)
+#
+sudo dd if=uboot_Binary/firmware_ls1043ardb_uboot_sdboot.img of=/dev/sdb bs=512 seek=8
+
+
+
+Format SD card     32Gig card like this:
+----------------------------------------------
+
+sudo fdisk /dev/sdb
+o
+n
+p
+1
+139264
+344063
+n
+p
+2
+346112
+4540415
+n
+p
+3
+4542464
+15028223
+n
+p
+15030272
+<enter>
+w
+
+
+ mkfs.ext4 -L misc   /dev/sdb1
+ mkfs.ext4 -L boot   /dev/sdb2
+ mkfs.ext4 -L backup /dev/sdb3
+ mkfs.ext4 -L system /dev/sdb4
+
+
+
+
+
+Result should look like this:
+
+
+Device     Boot    Start      End  Sectors  Size Id Type
+/dev/sdb1         139264   344063   204800  100M 83 Linux      misc
+/dev/sdb2         346112  4540415  4194304    2G 83 Linux      boot
+/dev/sdb3        4542464 15028223 10485760    5G 83 Linux      backup
+/dev/sdb4       15030272 62521343 47491072 22.7G 83 Linux      system
+
+
+
+remove/re-insert.   Should now mount as:
+
+                       /media/jreed/misc
+                       /media/jreed/boot
+                       /media/jreed/backup
+                       /media/jreed/system
+
+===============================================================
+
+The above steps only need to be performed once.
+
+After that, the steps below can be done using that card multiple times.
+
+===============================================================
+
+
+2.  Making a Root File System that includes a kernel
+----------------------------------------------------------
+
+**IMPORTANT:  Assumes kernel is already made and located in $KERNEL_DIR
+
+
+Edit make_rootfs.sh.  Change these variables, located at the top of the file:
+
+        LOCAL_DIR=/home/jreed/extra4
+        KERNEL_DIR=/opt/linux-imx
+
+Edit make_sdcard.sh.  Change these variables, located at the top of the file:
+
+        BOOT=/media/jreed/BOOT
+        ROOTFS=/media/jreed/rootfs
+        KERNEL_DIR=/opt/linux-imx
+
+
+IF both BOOT and rootfs are mounted, THEN execute:
+
+        make_rootfs.sh
+        make_sdcard.sh
+
+
+
+Remove card, place in imx8mqevk and GO!!
+
+
