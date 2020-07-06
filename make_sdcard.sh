@@ -11,8 +11,8 @@ sudo rsync -avD bootpart/* $BOOT
 #
 #   Now finish up by copying the rootfs to disk
 #
-#sudo rm -rf $ROOTFS/*
-#sudo rsync -avD rootfs/* $ROOTFS
+sudo rm -rf $ROOTFS/*
+sudo rsync -avD rootfs/* $ROOTFS
 
 
 #

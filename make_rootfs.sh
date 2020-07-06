@@ -4,10 +4,12 @@ set -x
 UBUNTU_LOCATION=/home/jreed/extra4/Downloads
 KERNEL_DIR=/opt/linux-layerscape
 
-HOSTNAME="ls1043ardb"
 
 UBUNTU_NAME="rootfs_lsdk2004_ubuntu_main_arm64.tgz"
 BOOTPART_NAME="bootpartition_LS_arm64_lts_5.4.tgz"
+DTB_NAME="fsl-ls1043a-rdb-sdk.dtb"
+
+HOSTNAME="ls1043ardb"
 
 
 
@@ -180,9 +182,11 @@ sudo rm Image Image.gz vmlinuz-5.4.3
 sudo cp $KERNEL_DIR/arch/arm64/boot/Image  .
 sudo gzip -k Image
 sudo cp Image.gz vmlinuz-5.4.3
+sudo rm -f *1043*.dtb
+sudo cp $KERNEL_DIR/arch/arm64/boot/dts/freescale/$DTB_NAME .
+sudo rm -rf flash_images secboot_hdrs
+sudo rm *.itb
 popd
-
-
 
 
 
