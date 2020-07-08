@@ -16,8 +16,8 @@
 
     2.   Linux Kernel for imx8.    The build produces 2 files that are needed:
 
-                 1.  Image              (Linux kernel)
-                 2.  ???.dtb            (Device Tree Binary)
+                 1.  Image                     (Linux kernel)
+                 2.  fsl-ls1043a-rdb-sdk.dtb   (Device Tree Binary)
 
          Kernel comes from:
 
@@ -38,7 +38,11 @@
 
 
 
-    3.   Ubuntu Base File System
+    3.   Ubuntu Base File System        rootfs_lsdk2004_ubuntu_main_arm64.tgz
+
+
+         Comes from the same location as u-boot Binary
+ 
 
 
 
@@ -50,12 +54,16 @@
 #   Takes about 60 seconds (5yr old clunky dell laptop), so be patient.   This effectively wipes a sdcard
 #
 sudo dd if=/dev/zero of=/dev/sdb bs=1M count=812400000 iflag=count_bytes status=progress conv=fsync
+or
+sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=812400000 iflag=count_bytes status=progress conv=fsync
 
 #
 #   Copies u-boot Binary to sdcard
 #   File comes from nxp Binaries distribution (see their website)
 #
 sudo dd if=uboot_Binary/firmware_ls1043ardb_uboot_sdboot.img of=/dev/sdb bs=512 seek=8
+or
+sudo dd if=uboot_Binary/firmware_ls1043ardb_uboot_sdboot.img of=/dev/mmcblk0 bs=512 seek=8
 
 
 
@@ -130,23 +138,19 @@ After that, the steps below can be done using that card multiple times.
 
 Edit make_rootfs.sh.  Change these variables, located at the top of the file:
 
-        LOCAL_DIR=/home/jreed/extra4
-        KERNEL_DIR=/opt/linux-imx
+        UBUNTU_LOCATION=/home/jreed/extra4/Downloads
+        KERNEL_DIR=/opt/linux-layerscape
 
 Edit make_sdcard.sh.  Change these variables, located at the top of the file:
 
-        BOOT=/media/jreed/BOOT
-        ROOTFS=/media/jreed/rootfs
-        KERNEL_DIR=/opt/linux-imx
+        BOOT=/media/jreed/boot
+        ROOTFS=/media/jreed/system
 
 
-IF both BOOT and rootfs are mounted, THEN execute:
+IF both boot and system are mounted, THEN execute:
 
         make_rootfs.sh
         make_sdcard.sh
 
-
-
-Remove card, place in imx8mqevk and GO!!
 
 
