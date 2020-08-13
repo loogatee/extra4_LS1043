@@ -86,14 +86,25 @@ sudo /bin/bash -c "echo $HOSTNAME >   rootfs/etc/hostname"
 #sudo /bin/bash -c "echo 127.0.0.1 localhost $HOSTNAME >   rootfs/etc/hosts"
 sudo sed -i "s/127.0.0.1	localhost/127.0.0.1	localhost $HOSTNAME/" rootfs/etc/hosts
 
+#
+#  This creates rootfs/etc/network/interfaces.d/fm1-mac3:
+#
+sudo /bin/bash -c "echo auto fm1-mac3 >      rootfs/etc/network/interfaces.d/fm1-mac3"
+sudo sed -i "\$aiface fm1-mac3 inet static"  rootfs/etc/network/interfaces.d/fm1-mac3
+sudo sed -i "\$a    address 192.168.7.2"     rootfs/etc/network/interfaces.d/fm1-mac3
+sudo sed -i "\$a    netmask 255.255.255.0"   rootfs/etc/network/interfaces.d/fm1-mac3
+sudo sed -i "\$a    broadcast 255.255.7.255" rootfs/etc/network/interfaces.d/fm1-mac3
+sudo sed -i "\$a    gateway 192.168.7.4"     rootfs/etc/network/interfaces.d/fm1-mac3
+
 
 #
 #   Creates /etc/resolv.conf
 #
+sudo rm -f                                   rootfs/etc/resolv.conf
+sudo touch                                   rootfs/etc/resolv.conf
 sudo ed  rootfs/etc/resolv.conf << yEOF
 a
 nameserver 8.8.8.8
-search ap.freescale.net am.freescale.net
 options edns0
 .
 w
@@ -118,15 +129,32 @@ sudo cp Custom_Files/usb_tcpip/g_ether.conf     rootfs/etc/modules-load.d
 sudo cp Custom_Files/usb_tcpip/udhcpd.conf      rootfs/etc/udhcpd.conf
 
 
-
-
-
 #
 #    An example of a simple addition to an existing file
 #    Add to the skel file also
 #    
 sudo sed -i "\$aalias dir='ls -CF'" rootfs/root/.bashrc
 sudo sed -i "\$aalias dir='ls -CF'" rootfs/etc/skel/.bashrc
+
+
+#
+#    'source directory' thing in /etc/network/interfaces
+#    
+sudo sed -i "\$asource-directory /etc/network/interfaces.d"   rootfs/etc/network/interfaces
+
+#
+#    timezone thing
+#    
+sudo rm -f                                              rootfs/etc/localtime
+sudo ln -s /usr/share/zoneinfo/America/Phoenix          rootfs/etc/localtime
+
+
+#
+#    Removing this allows apt-get update to work
+#
+sudo rm -f                                              rootfs/etc/apt/apt.conf
+
+
 
 
 #
@@ -165,12 +193,15 @@ popd
 #
 #   Removes existing 5.4.3 modules
 #
-rm -rf bootpart/modules/*
+#rm -rf bootpart/modules/*
+sudo rm -f                                          rootfs/lib/modules
+sudo mkdir                                          rootfs/lib/modules
 
 #
 #   Writes modules
 #
-sudo rsync -avD /tmp/tmpXX/lib/modules/*              bootpart/modules
+#sudo rsync -avD /tmp/tmpXX/lib/modules/*             bootpart/modules
+sudo rsync -avD /tmp/tmpXX/lib/modules/*              rootfs/lib/modules
 
 
 #
@@ -184,7 +215,7 @@ sudo gzip -k Image
 sudo cp Image.gz vmlinuz-5.4.3
 sudo rm -f *1043*.dtb
 sudo cp $KERNEL_DIR/arch/arm64/boot/dts/freescale/$DTB_NAME .
-sudo rm -rf flash_images secboot_hdrs
+#sudo rm -rf flash_images secboot_hdrs
 sudo rm *.itb
 popd
 
