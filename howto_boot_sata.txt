@@ -1,0 +1,466 @@
+ 
+
+  Booting from Sata
+ ---------------------
+
+          "Booting from Sata" is really a misnomer, because technically we are booting from
+          NorFlash and then just using SATA to hold the Root File System.
+
+          So this is really a hybrid type of boot:  Boot from NorFlash, then use SATA as the Root File System.
+
+          To the untrained eye, it will appear that the system is REALLY booting from SATA.
+
+
+
+================================== Intro ================================================
+
+
+0.  Before you even get started, grab the User Manual and keep it handy
+
+    "Layerscape Software Development Kit User Guide"
+
+                 manuals/LS1043_SDK_UserGuide.pdf
+
+    ** Pay special attention to Chapter 4:       "Layerscape SDK user guide"
+
+    ** And then under Chapter 4, Section 4.1.8:  "LSDK Quick Start Guide for LS1043ARDB"
+
+    ** Section 4.2, also very valuable:          "LSDK memory layout and Userland"
+
+
+1.  High-Level Overview
+
+    There are  ***Five Components***  that go into this Linux Build, with
+    3 of those components associated with the Linux Kernel
+
+          1. U-boot                    2 binary files
+          2. Kernel Image              Sourcecode: Configured and Built
+          3. Kernel Modules            Sourcecode: Built along with Kernel Image
+          4. Kernel Device Tree        1 binary file
+          5. Root File System          Binary plus Custom mods
+
+    These 3 components will be written to NorFlash:
+
+          - U-boot
+          - Kernel Image
+          - Kernel Device Tree
+
+    These 2 components will be written to SATA:
+
+          - Root File System
+          - Kernel Modules
+
+    Board-Level switches changed to "Boot From NorFlash"
+
+          - boot from NorFlash, Bank 4
+
+    U-boot variables changed to enable autoboot from NorFlash, with Root File System on Sata
+
+          - bootargs:  root=/dev/sda1
+
+          - bootcmd:  copy files for NOR to Dram; booti <kernel addr> - <device tree addr>
+
+
+
+
+========================= Part 1:  Get all the Files ====================================
+
+
+
+2.  Follow the instructions in instructions.txt for creating an sdcard.
+
+    4 partitions are created when the instructions are followed.    
+
+    We will be using the <mount_point>/boot partition as the destination for the
+    components listed above (excluding Root File System), and
+    then once on the sdcard, there is a method to get those files
+    burned into norflash.
+
+      - Create the sdcard based on notes in instructions.txt  
+
+      - mount up the /boot partition.   We're going to copy some files there.
+
+            ****   I'll refer to the destination as <mount_point>/boot    ****
+
+
+3.  Get the u-boot files   (there are 2 of them)
+
+    Goto this github addr:   https://lsdk.github.io/
+
+                             click on:                Components -> LSDK Images
+
+                             Then on the dropdown:    choose "2004"       (just below "2004-update-290520")
+
+                             Scroll down just a bit:  File = bootpartition_LS_arm64_lts_5.4.tgz
+
+
+    Hit the "DOWNLOAD" button.
+    It leads to an "accept" page, where the command to retrieve the file is this:
+
+       - wget https://www.nxp.com/lgfiles/sdk/lsdk2004/bootpartition_LS_arm64_lts_5.4.tgz
+
+       - gunzip and untar that file
+
+       - goto directory:    flash_images/ls1043ardb
+
+             - File1 = bl2_nor.pbl
+
+             - File2 = fip_uboot.bin
+
+       - copy both of these files to the sdcard:    <mount_point>/boot 
+
+
+4.  Get the Device Tree file.   It comes from that same .tgz file in step #3.
+
+       - You were just in the directory:    flash_images/ls1043ardb
+
+       - Move up 2 dirs, to the base directory of the .tgz extraction:   cd ../..
+
+             - File = fsl-ls1043a-rdb-sdk.dtb
+
+       - copy that file to the sdcard:   <mount_point>/boot
+
+
+5.  Get the kernel
+
+       optional: I like to put my kernel builds in /opt
+
+            cd /opt
+
+       git clone command:
+
+            git clone https://source.codeaurora.org/external/qoriq/qoriq-components/linux
+
+                 (takes a long time)
+
+       I like to rename the 'linux' directory created to something more meaningful.
+       Then goto that directory.
+
+            mv linux linux-layerscape
+            cd linux-layerscape
+
+       Checkout this branch
+
+            git checkout -b linux-5.4 origin/linux-5.4
+
+
+6.  Config and Build the kernel
+
+            export ARCH=arm64
+            export CROSS_COMPILE=aarch64-linux-gnu-
+            make defconfig lsdk.config
+            make menuconfig
+            make Image modules dtbs -j8
+
+    The reason the kernel needs to get rebuilt is that the pre-built kernel from NXP/Layerscape
+    does not support SATA.  In order to support SATA, the kernel must be configured properly.
+
+    I followed section 7.2.8 of the User Manual:  "PCI Express Interface Controller"
+
+
+7.  Copy the kernel you just built to the sdcard
+
+         - cd arch/arm64/boot
+         - cp Image <mount_point>/boot 
+
+
+8.  Build the Root File System
+
+    The basis for the root file system is a binary .tgz file which comes from NXP/Layerscape.
+
+    - Same exact webpage from Step #3.
+
+    - The 'bootpartition' file was at the very top of the page.
+      The File we want is now at the VERY BOTTOM of the page:
+
+           - File = rootfs_lsdk2004_ubuntu_main_arm64.tgz
+
+    - there is a 'wget' command to get this file:
+
+           - wget https://www.nxp.com/lgfiles/sdk/lsdk2004/rootfs_lsdk2004_ubuntu_main_arm64.tgz
+
+    - edit make_rootfs.sh, and modify 2 constants at the top.
+
+           'UBUNTU_LOCATION' is where you placed 2 files:
+
+               1. bootpartition_LS_arm64_lts_5.4.tgz
+               2. rootfs_lsdk2004_ubuntu_main_arm64.tgz
+
+           'KERNEL_DIR' is where you built your kernel.
+
+    - execute make_rootfs.sh
+
+    - manually create a .tar.gz file from the Root File System you just created
+
+           - cd rootfs
+           - sudo tar cf ../RFS.tar .
+           - cd ..
+           - sudo gzip RFS.tar
+
+
+9.  Heat Check Summary so far
+
+          1. U-boot:                    Obtained 2 files.  Copied to sdcard.  Step #3
+
+          2. Linux Operating System
+
+             a.  The actual kernel      Cloned, Built, Copied to sdcard:  Steps #5,6,7
+             b.  kernel modules         Built: Step #6, Copied to rootfs: Step #8.
+             c.  Device Tree            Obtained 1 file. Copied to sdcard: Step #4.
+
+          3. Root File System           Created in Step #8.  RFS.tar.gz
+
+
+
+========================= Part 2:  Put files in their final destination =================
+
+
+10.  Create a bootable sdcard.
+
+     I'm not going to list all the details here.   Assuming you can figure this out, as
+     it is the simplest thing to do with the 1043ardb box.
+
+     Follow the directions in instructions.txt.   Most of the instructions are
+     a duplicate of what you've already done above in steps 2 thru 9.
+
+           - create a new sdcard
+           - YOU MUST use dd to write u-boot binary.  This makes the card bootable.
+           - edit make_rootfs.sh and make_sdcard.sh
+           - execute make_rootfs.sh
+           - execute make_sdcard.sh
+
+
+11.  Copy RFS.tar.gz to the sdcard
+
+     RFS.tar.gz was created in step #8.   
+
+     The sdcard you created has a directory named system:
+
+                 <mount_point>/system
+
+     sudo Copy RFS.tar.gz to <mount_point>/system
+
+                 When you boot the sdcard, RFS.tar.gz will be located in '/'
+                 In a step below, we'll take RFS.tar.gz and peel it off to the SATA drive.
+
+
+12.  Change switches to boot from Nor Flash Bank #0
+
+     There are 2 Nor Flash Banks:  Bank 0 and Bank 4.   Switches can be setup to boot from
+     either bank.   Ultimately we're going to boot from Bank 4, meaning we have to get some
+     files placed into Bank 4.
+
+     In order to get files into Bank 4, you've got to boot up from Bank #0.  From Bank #0 then,
+     commands are issued to erase and write files to Bank #4: that's a key bit of strategy there!
+
+     See section 4.1.8.2 of the User Manual  "On board switch options"
+
+     After EVERYTHING has been written to Nor Flash Bank 4, and the Root File System is peeled
+     off onto the SATA disk, THEN:
+
+              - as the FINAL step (way down below):  boot switches can be changed to Bank #4
+
+
+13.  Insert sdcard. Hit reset. Immediately break into u-boot.
+
+     Also, the SATA drive should be plugged in.  SATA drive is expected to be empty.
+
+     You've got to set up a serial port connection to the console and all that.
+     Big assumption is that you've got all that figured out.
+
+     At the u-boot prompt:
+
+         ==> cpld reset sd
+
+     This should completely boot up on the sdcard, and you should get a login prompt
+     on the serial port.
+
+     Login as root.
+     Password is either root, or there is no password.
+
+
+14.  Partition, Format, Mount the SATA drive.
+
+     Create 1 single giant partition on /dev/sda.
+     Use fdisk something like this:
+
+          fdisk /dev/sda
+          o
+          n
+          p
+          1
+          20480
+          <enter>
+          w
+
+     Format the sdcard as ext4:
+
+          sudo mkfs.ext4 -L system /dev/sda1
+     
+     Now it should mount:
+
+          mount /dev/sda1 /mnt    
+
+
+15.  Create the Root File System using RFS.tar.gz
+
+          - cd /mnt
+          - tar xzf /RFS.tar.gz
+
+
+16.  Heat Check on the Root File System
+
+
+     Steps 10 to 15 were all about 1 component, the RFS, and
+     getting it to it's final destination.
+
+     This step could be taken completely offline, so to speak.
+
+     Once a single Root File System (RFS.tar.gz) has been produced, a
+     scriptable repitive process can happen that gets that
+     Root File System copied to a mountable SATA drive.
+
+     Any Linux box with a usb to SATA adapter could host this.
+     
+
+17.  Kernel Modules on the Root File System
+
+     This is effectively a NOP.   The Modules are already on the RFS.
+
+              See directory:   /lib/modules
+
+     They were placed there at the time rootfs was created using:
+
+              make_rootfs.sh
+
+
+     I want to point out from Step #1 "High-Level Overview", that there
+     were 2 components that needed to go to the SATA destination:
+
+                    - Root File System
+                    - kernel modules
+
+     ***  Both of these components should now be in place  ***
+
+     3 components remain to be placed in their final destinations.
+     All need to get written to NOR Flash.
+
+                    - u-boot
+                    - Kernel Image
+                    - Kernel Device Tree
+
+18.  Use "reboot" to reboot the unit, and get back into u-boot
+
+     At the linux command prompt:   reboot
+
+     Break into u-boot immediately.   You should still be booting from Nor Bank 0.
+
+     You should have another sdcard with the following 4 files, built
+     using the steps above from #3 to #7:
+
+          - <mount_point>/boot/bl2_nor.pbl                        (Step 3)
+          - <mount_point>/boot/fip_uboot.pbl                      (Step 3)
+          - <mount_point>/boot/fsl-ls1043a-rdb-sdk.dtb            (Step 4)
+          - <mount_point>/boot/Image                              (Step 7)
+
+     - Remove the sdcard you booted up on, and place the sdcard with
+       the 4 files in it, into the slot
+
+     - hit the reset button.
+
+     - Break immediately into u-boot again.   (Still booting from Nor Bank 0)
+
+
+19.  Program u-boot into Nor Flash, Bank 4
+
+     See Section 4.2 of the User Manual:   "LSDK memory layout and Userland".
+     See Table 19 in that section for the memory map layout.
+
+        => load mmc 0:2 0xa0000000 bl2_nor.pbl
+        => erase 0x64000000 +$filesize
+        => cp.b 0xa0000000  0x64000000  $filesize
+ 
+        => load mmc 0:2 0xa0000000 fip_uboot.bin
+        => erase 0x64100000 +$filesize
+        => cp.b 0xa0000000 0x64100000 $filesize
+
+     *** Just note that it takes 2 files to program u-boot.
+
+
+20.  Program Kernel Device Tree into Nor Flash, Bank 4
+
+        => load mmc 0:2 0xa0000000 fsl-ls1043a-rdb-sdk.dtb
+        => erase 0x64F00000 +$filesize
+        => cp.b 0xa0000000 0x64F00000 $filesize
+
+
+21.  Program Kernel Image into Nor Flash, Bank 4
+
+        => load mmc 0:2 0xa0000000 Image
+        => erase 0x65000000 +$filesize
+        => cp.b 0xa0000000 0x65000000 $filesize
+
+
+22.  Change the Boot Switches to boot from Bank 4, and hit Reset
+
+     See section 4.1.8.2 of the User Manual  "On board switch options"
+
+                  (1 pin on switch 5 needs to change)
+
+     - Hit the reset button
+
+     - Jump into u-boot immediately.
+
+     - You can remove the sdcard, it's no longer needed
+
+
+23.  Add/Modify several u-boot variables.
+
+        => setenv bmsg "echo copying Kernel and dtb to ram...;"
+        => setenv bnor "cp.b 0x61000000 0x81000000 0x2300000; cp.b 0x60F00000 0x90000000 0x8000; booti 0x81000000 - 0x90000000;"
+        => setenv bootcmd "run bmsg; run bnor;"
+        => setenv bootargs "console=ttyS0,115200 root=/dev/sda1 rw rootwait earlycon=uart8250,mmio,0x21c0500"
+        => saveenv
+
+
+24.  That's it.  All done.  Hit reset.
+
+     It should auto-boot from Bank #4, Root File System should be found on SATA, and that
+     sucker should boot up to a login prompt.
+
+     It just should.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
