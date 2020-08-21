@@ -1,0 +1,197 @@
+
+
+
+   Elements:
+  ----------------------
+
+    1.   u-boot Binary:        uboot_Binary/imx-boot-4.19-imx8mqevk-sd.bin-flash_evk_no_hdmi
+
+         comes from nxp website:
+
+              https://www.nxp.com/design/development-boards/i-mx-evaluation-and-development-boards/evaluation-kit-for-the-i-mx-8m-applications-processor:MCIMX8M-EVK
+
+
+         It's a file inside this binary distribution:   ('Documents & Software' Tab)
+
+              L4.19.35_1.1.0       (4.19 version)
+
+
+    2.   Linux Kernel for imx8.    The build produces 2 files that are needed:
+
+                 1.  Image                  (Linux kernel)
+                 2.  fsl-imx8mq-evk.dtb     (Device Tree Binary)
+
+         Kernel comes from:
+
+                 git clone https://source.codeaurora.org/external/imx/linux-imx
+
+         On this branch:
+
+                 git checkout imx_4.19.35_1.1.0
+
+         There are some driver files and a defconfig that needs to get added to the kernel source tree.
+         See instructions:
+
+                 linux_patch/README
+
+
+
+    3.   Yocto File System
+
+         From same binary package as u-boot
+
+             imx-image-multimedia-imx8mqevk.tar.bz2 
+
+             ****BING,BING,BING:    This file needs to get changed to a .tar.gz
+                                    un-b-zip-it or whatever so it's just a .tar
+                                    Then gzip the .tar
+
+                                    Place in your ~Downloads directory.
+                                    See $YOCTO_LOCATION below.
+
+
+
+
+1.  Making a bootable SDCARD:
+-------------------------------
+
+#
+#   Takes about 60 seconds (5yr old clunky dell laptop), so be patient.   This effectively wipes a sdcard
+#
+sudo dd if=/dev/zero of=/dev/sdb bs=4096 count=612400000 iflag=count_bytes status=progress conv=fsync
+
+#
+#   Copies u-boot Binary to sdcard
+#   File comes from nxp Binaries distribution (see their website)
+#
+sudo dd if=uboot_Binary/imx-boot-4.19-imx8mqevk-sd.bin-flash_evk_no_hdmi of=/dev/sdb bs=1024 seek=33
+
+
+
+#
+#   Formats sdcard
+#
+sudo fdisk /dev/sdb
+o
+n
+p
+1
+4000
+126880
+t
+c
+n
+p
+2
+127000
+4223000
+w
+
+
+sudo mkfs.vfat -n BOOT   /dev/sdb1
+sudo mkfs.ext4 -L rootfs /dev/sdb2
+
+remove/re-insert.   Should now mount as:
+
+                       /media/jreed/BOOT
+                       /media/jreed/rootfs
+
+===============================================================
+
+The above steps only need to be performed once.
+
+After that, the steps below can be done using that card multiple times.
+
+===============================================================
+
+
+2.  Making a Root File System that includes a kernel
+----------------------------------------------------------
+
+**IMPORTANT:  Assumes kernel is already made and located in $KERNEL_DIR
+
+Edit make_rootfs.sh.  Change these variables, located at the top of the file:
+
+        YOCTO_LOCATION=/home/jreed/extra4/Downloads
+        KERNEL_DIR=/opt/linux-imx-4.19.35
+
+
+Edit make_sdcard.sh.  Change these variables, located at the top of the file:
+
+        BOOT=/media/jreed/BOOT
+        ROOTFS=/media/jreed/rootfs
+        KERNEL_DIR=/opt/linux-imx-4.19.35
+
+
+IF both BOOT and rootfs are mounted, THEN execute:
+
+        make_rootfs.sh
+        make_sdcard.sh
+
+
+
+Remove card, place in imx8mqevk and GO!!
+
+---------------------------------------------------------
+
+Building a Single Package.
+
+On build machine:
+
+     bitbake -b <PackageName>
+
+     bitbake -b <PackageName> -c install -f
+
+     bitbake package-index
+
+python web server for rpm package manager:
+
+     cd ~/imx-yocto-bsp/nxpboard/tmp/deploy/rpm
+
+     sudo python3 -m http.server --bind 192.168.7.4 80
+
+
+
+On target:
+
+     dnf makecache
+
+     dnf -v install <PackageName>
+
+
+---------------------------------------------------------
+
+Building and plucking the root file system
+
+cd ~/imx-yocto-bsp
+DISTRO=fsl-imx-wayland MACHINE=imx8mqevk source fsl-setup-release.sh -b nxpboard/
+cp conf/local.conf.keep conf/local.conf
+bitbake fsl-image-lteboard-imx
+bitbake package-index
+loopmount
++++++++++++++++++++
+cd /mnt
+rm ~/extra4/Downloads/yocto_rootfs.tar.gz
+sudo tar cf ~/extra4/Downloads/yocto_rootfs.tar .
+cd ~/extra4/Downloads
+sudo chown jreed:jreed yocto*
+gzip yocto_rootfs.tar
+cd ~/extra4/yocto
+./make_rootfs.sh
+./make_sdcard.sh
+
+
+alias for loopmount is this:
+
+alias loopmount='sudo mount -o loop /home/jreed/imx-yocto-bsp/nxpboard/tmp/deploy/images/imx8mqevk/fsl-image-lteboard-imx-imx8mqevk.ext4 /mnt'
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,48 @@
+
+
+
+1.  ehci-msm Driver.   Qualcomm modem driver thing.
+                       Manually install into kernel tree (see below)
+
+    Makefile:
+    Kconfig:
+    ehci-msm.c:      <root-kernel-src>/drivers/usb/host
+
+    msm_hsusb_hw.h:  <root-kernel-src>/include/linux/usb
+
+
+2.  The defconfig
+
+    defconfig:       <root-kernel-src>/arch/arm64/configs
+
+
+3.  Get kernel, and Kernel build instructions
+
+    1.  reference instructions from:  https://boundarydevices.com/wiki/linux-kernel-imx8/
+
+    2.  Install build tools (only once on your machine)
+
+        sudo apt-get install crossbuild-essential-arm64
+
+    3.  imx8 Kernel comes from:
+
+        git clone https://source.codeaurora.org/external/imx/linux-imx
+
+    4.  Use this branch:
+
+        git checkout imx_4.19.35_1.1.0
+
+    5.  Manually add in the ehci-msm driver from above
+
+    6.  Makes the config, the Image, the Modules, and the Device Tree Binary
+
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        make defconfig
+        make Image modules dtbs -j8
+
+
+
+
+
+

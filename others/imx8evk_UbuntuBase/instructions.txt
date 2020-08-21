@@ -1,0 +1,133 @@
+
+
+   Elements:
+  ----------------------
+
+    1.   u-boot Binary:     imx-boot-5.4-imx8mqevk-sd.bin-flash_evk_no_hdmi
+                            or
+                            imx-boot-4.19-imx8mqevk-sd.bin-flash_evk_no_hdmi
+
+         comes from nxp website:
+
+              https://www.nxp.com/design/development-boards/i-mx-evaluation-and-development-boards/evaluation-kit-for-the-i-mx-8m-applications-processor:MCIMX8M-EVK
+
+
+         It's a file inside this binary distribution:   ('Documents & Software' Tab)
+
+              L5.4.3_1.0.0_MX8MQ   (5.4 version)
+              or
+              L4.19.35_1.1.0       (4.19 version)
+
+
+    2.   Linux Kernel for imx8.    The build produces 2 files that are needed:
+
+                 1.  Image              (Linux kernel)
+                 2.  imx8mq-evk.dtb     (Device Tree Binary)
+
+         Kernel comes from:
+
+                 git clone https://source.codeaurora.org/external/imx/linux-imx
+
+         On this branch:
+
+                 git checkout imx_5.4.3_2.0.0
+
+
+    3.   Ubuntu Base File System   16.04.6  (xenial)
+
+         This root file system is very small:   only 37MB.
+
+       wget http://cdimage.ubuntu.com/ubuntu-base/releases/16.04.6/release/ubuntu-base-16.04.6-base-arm64.tar.gz
+
+
+         At 1st boot, there are some debians to install in order to enable networking.
+         Once that is done, 'apt-get' works fine.
+
+
+
+
+1.  Making a bootable SDCARD:
+-------------------------------
+
+#
+#   Takes about 60 seconds (5yr old clunky dell laptop), so be patient.   This effectively wipes a sdcard
+#
+sudo dd if=/dev/zero of=/dev/sdb bs=4096 count=612400000 iflag=count_bytes status=progress conv=fsync
+
+#
+#   Copies u-boot Binary to sdcard
+#   File comes from nxp Binaries distribution (see their website)
+#
+sudo dd if=uboot_Binary/imx-boot-imx8mqevk-sd.bin-flash_evk_no_hdmi of=/dev/sdb bs=1024 seek=33
+
+#
+#   Formats sdcard
+#
+sudo fdisk /dev/sdb
+o
+n
+p
+1
+20480
+1024000
+t
+c
+n
+p
+2
+1228800
+<enter>
+w
+
+Result should look like this:
+
+        Device         Boot   Start      End  Sectors  Size Id Type
+        /dev/sdb1             20480  1024000  1003521  490M  c W95 FAT32 (LBA)
+        /dev/sdb2           1228800 31116287 29887488 14.3G 83 Linux
+
+
+sudo mkfs.vfat -n BOOT   /dev/sdb1
+sudo mkfs.ext4 -L rootfs /dev/sdb2
+
+remove/re-insert.   Should now mount as:
+
+                       /media/jreed/BOOT
+                       /media/jreed/rootfs
+
+===============================================================
+
+The above steps only need to be performed once.
+
+After that, the steps below can be done using that card multiple times.
+
+===============================================================
+
+
+2.  Making a Root File System that includes a kernel
+----------------------------------------------------------
+
+**IMPORTANT:  Assumes kernel is already made and located in $KERNEL_DIR
+
+
+Edit make_rootfs.sh.  Change these variables, located at the top of the file:
+
+        LOCAL_DIR=/home/jreed/extra4
+        KERNEL_DIR=/opt/linux-imx
+
+Edit make_sdcard.sh.  Change these variables, located at the top of the file:
+
+        BOOT=/media/jreed/BOOT
+        ROOTFS=/media/jreed/rootfs
+        KERNEL_DIR=/opt/linux-imx
+
+
+IF both BOOT and rootfs are mounted, THEN execute:
+
+        make_rootfs.sh
+        make_sdcard.sh
+
+
+
+Remove card, place in imx8mqevk and GO!!
+
+

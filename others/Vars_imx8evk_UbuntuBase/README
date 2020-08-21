@@ -1,0 +1,73 @@
+
+
+   For the Variscite Board:   DART-MX8M
+-----------------------------------------------
+
+
+     make_rootfs.sh:    makes a ubuntu rootfs
+
+     make_Yrootfs.sh:   makes a Yocto rootfs
+
+     make_sdcard.sh:    burns rootfs to sdcard (works for both ubuntu and Yocto)
+
+
+ Before using the scripts above:
+ -------------------------------
+
+  Follow directions from the Variscite wiki page:
+
+
+  https://variwiki.com/index.php?title=Debian_Build_Release&release=RELEASE_BUSTER_V3.0_DART-MX8M
+
+
+  You don't need to do everything.   Use these steps:
+
+  1.  git clone https://github.com/varigit/debian-var.git -b debian_buster_var02 debian_imx8mq-var-dart
+
+  2.  cd ~/debian_imx8mq-var-dart
+
+  3.  MACHINE=imx8mq-var-dart ./var_make_debian.sh -c deploy
+
+  4.  sudo MACHINE=imx8mq-var-dart ./var_make_debian.sh -c bootloader
+
+  5.  sudo MACHINE=imx8mq-var-dart ./var_make_debian.sh -c kernel
+
+
+---------------------------
+
+    dtb's used by Variscite imx8
+
+         fsl-imx8mq-var-dart.dtb -> fsl-imx8mq-var-dart-sd-lvds.dtb
+
+---------------------------
+
+    ttymxc1:
+
+         Device RxD to Pin 4
+                TxD to Pin 6
+                GND to Pin 12
+
+    For getty:
+
+         /etc/systemd/system/getty.target.wants
+
+
+    ttymxc1:
+
+         Device RxD to Pin 4
+                TxD to Pin 6
+                GND to Pin 12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
